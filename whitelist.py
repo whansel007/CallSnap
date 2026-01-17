@@ -1,6 +1,7 @@
 # Reference: https://www.geeksforgeeks.org/python/python-get-list-of-running-processes/
 import os, process_handling, win32gui, tkinter as tk
 from pprint import pprint
+from okcancelapply import OkCancelApply as OCA
 
 """
 Public method: 
@@ -79,16 +80,15 @@ class _ProgramButton(tk.Button):
         elif len(self.desc) > self._MAX_CHAR:
             self.desc = self.desc[:self._MAX_CHAR - 3] + "..."
 
+        # Create Program Button
         super().__init__(master, text = self.desc, command = self.command, width = self._MAX_CHAR + 4)
         self._isWhitelisted = _isWhitelisted(name, _whitelist)
     
     def toggleWhitelist(self):
-        # print(self.name)
         self._isWhitelisted = not self._isWhitelisted
 
     def refresh(self, newMaster: tk.Misc):
         super().__init__(newMaster, text = self.desc, command = self.command, width = self._MAX_CHAR + 4)
-
     
     def isWhitelisted(self) -> bool:
         return self._isWhitelisted
@@ -97,7 +97,7 @@ class _WhitelistUI(tk.Toplevel):
     _PADDING: int = 10
     _PACK_KWARGS = {"padx": _PADDING, "pady": _PADDING, "fill": "x"}
 
-    def __init__(self, master = None, title: str = "Whitelist", width: int = 600, height: int = 600) -> None:
+    def __init__(self, master = None, title: str = "Whitelist", width: int = 500, height: int = 600) -> None:
         # Instance Variables
         self._programButtons: dict[int, _ProgramButton] = {}
         self.processes = _getAllProcesses()
@@ -106,9 +106,6 @@ class _WhitelistUI(tk.Toplevel):
         super().__init__(master)
         self.title(title)
         self.geometry(f"{width}x{height}")
-
-        # display = "\n".join([f"{pid}\t: {name}" for pid, name in processes.items()])
-        # tk.Label(self, text = display).pack()
 
         # Programs List
         self.programsFrame: tk.LabelFrame = tk.LabelFrame(self, text = "Programs")
@@ -121,8 +118,28 @@ class _WhitelistUI(tk.Toplevel):
         # Program Buttons
         self.insertButtons()
 
+        # Ok Cancel Apply Button
+        self.oca: OCA = OCA(self, self._apply, None, self._stateFunc)
+        self.oca.pack(side="bottom")
+
         # Closing protocol
         self.protocol("WM_DELETE_WINDOW", self.window_exit)
+
+    def _apply(self):
+        _whitelist[:] = self.localWhitelist
+
+    
+    def _stateFunc(self):
+        print("Local :", self.localWhitelist)
+        print("Global:", _whitelist)
+        print()
+        if len(_whitelist) != len(self.localWhitelist):
+            return True
+
+        for prog in self.localWhitelist:
+            if prog not in _whitelist:
+                return True
+        return False
 
     def window_exit(self):
         _whitelist[:] = self.getProgramWhitelist()
@@ -162,19 +179,21 @@ class _WhitelistUI(tk.Toplevel):
             selfButton.refresh(self.whitelistFrame)
         else:
             selfButton.refresh(self.programsFrame)
-
         # self.insertButtons()
         selfButton.pack()
-        whitelist_length = len(self.getProgramWhitelist())
+        self.localWhitelist[:] = self.getProgramWhitelist()
+        whitelist_length = len(self.localWhitelist)
         # print(f"{whitelist_length = }")
         self.blankWhitelistLabel.pack_forget()
         self.blankProgramLabel.pack_forget()
+
         if whitelist_length == 0: # No whitelist
             self.blankWhitelistLabel.pack()
         
         if len(self.processes) - whitelist_length == 0: # No blacklist
             self.blankProgramLabel.pack()
-        self._printProgramWhitelist()
+        self.oca.refreshApplyButton()
+        # self._printProgramWhitelist()
     
     def getProgramWhitelist(self):
         return [button.name for button in self._programButtons.values() if button.isWhitelisted()]
