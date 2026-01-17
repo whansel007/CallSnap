@@ -10,6 +10,7 @@ Public method:
 """
 
 _whitelist: list[str] = []
+_blacklist: list[str] = ["TextInputHost.exe"]
 
 # Private Functions
 def _splitCol(row: str) -> list[str]:
@@ -30,6 +31,7 @@ def _getAllProcesses() -> dict[int, str]:
         if len(info) != 0:
             desc, pid = info
             if len(process_handling.getHwnds(int(pid))) == 0: continue
+            if desc in _blacklist: continue
             processes[int(pid)] = desc
     return processes
 
@@ -51,13 +53,33 @@ def _isWhitelisted(name: str, whitelist: list[str]) -> bool:
 
 # Class
 class _ProgramButton(tk.Button):
+    _MAX_CHAR: int = 32
+
     def __init__(self, master: tk.Misc | None = None, pid: int = 0, name: str = "", command = lambda: print("Pressed")) -> None:
-        hwnds = process_handling.getHwnds(pid)
+        # Instance Variable
         self.name = name
-        for hwnd in hwnds:
-            self.desc = win32gui.GetWindowText(hwnd)
+        self.desc = ""
         self.command = command
-        super().__init__(master, text = self.desc, command = self.command)
+
+        # Get Window Name
+        hwnds = process_handling.getHwnds(pid)
+        for hwnd in hwnds:
+            tempDesc = win32gui.GetWindowText(hwnd)
+            # print(f"'{tempDesc}'")
+            if tempDesc != "" and self.desc == "":
+                # print(f"    '{tempDesc}'")
+                self.desc = tempDesc
+
+        # Add Program Name if it's not present
+        program_name = self.name.split(".")[0].lower()
+        if program_name not in self.desc.lower()[:self._MAX_CHAR - 3]:
+            if len(self.desc) > self._MAX_CHAR - len(program_name) - 3:
+                self.desc = self.desc[:self._MAX_CHAR - 3] + "..."
+            self.desc += f" ({program_name.capitalize()})"
+        elif len(self.desc) > self._MAX_CHAR:
+            self.desc = self.desc[:self._MAX_CHAR - 3] + "..."
+
+        super().__init__(master, text = self.desc, command = self.command, width = self._MAX_CHAR + 4)
         self._isWhitelisted = _isWhitelisted(name, _whitelist)
     
     def toggleWhitelist(self):
@@ -65,7 +87,7 @@ class _ProgramButton(tk.Button):
         self._isWhitelisted = not self._isWhitelisted
 
     def refresh(self, newMaster: tk.Misc):
-        super().__init__(newMaster, text = self.desc, command = self.command)
+        super().__init__(newMaster, text = self.desc, command = self.command, width = self._MAX_CHAR + 4)
 
     
     def isWhitelisted(self) -> bool:
@@ -73,12 +95,13 @@ class _ProgramButton(tk.Button):
 
 class _WhitelistUI(tk.Toplevel):
     _PADDING: int = 10
-    _PACK_ARGS = {"padx": _PADDING, "pady": _PADDING, "fill": "x"}
+    _PACK_KWARGS = {"padx": _PADDING, "pady": _PADDING, "fill": "x"}
 
     def __init__(self, master = None, title: str = "Whitelist", width: int = 600, height: int = 600) -> None:
         # Instance Variables
         self._programButtons: dict[int, _ProgramButton] = {}
         self.processes = _getAllProcesses()
+        self.localWhitelist = _whitelist[:]
 
         super().__init__(master)
         self.title(title)
@@ -89,11 +112,11 @@ class _WhitelistUI(tk.Toplevel):
 
         # Programs List
         self.programsFrame: tk.LabelFrame = tk.LabelFrame(self, text = "Programs")
-        self.programsFrame.pack(**self._PACK_ARGS) # padx = self._PADDING, pady = self._PADDING, fill = "x"
+        self.programsFrame.pack(**self._PACK_KWARGS) # padx = self._PADDING, pady = self._PADDING, fill = "x"
 
         # Whitelist
         self.whitelistFrame: tk.LabelFrame = tk.LabelFrame(self, text = "Whitelisted Programs")
-        self.whitelistFrame.pack(**self._PACK_ARGS)
+        self.whitelistFrame.pack(**self._PACK_KWARGS)
 
         # Program Buttons
         self.insertButtons()
@@ -119,10 +142,15 @@ class _WhitelistUI(tk.Toplevel):
             self._programButtons[pid] = programButton
         
         # Show LabelFrame
+        self.blankWhitelistLabel = tk.Label(self.whitelistFrame, text = "No whitelisted program yet.")
         self.blankProgramLabel = tk.Label(self.programsFrame, text = "No active program yet.")
-        self.blankProgramLabel.pack()
-        self.blankWhitelistLabel = tk.Label(self.whitelistFrame, text = "No ")
-        self.blankWhitelistLabel.pack()
+
+        whitelist_length = len(self.getProgramWhitelist())
+        if whitelist_length == 0:
+            self.blankWhitelistLabel.pack()
+        
+        if len(self.processes) - whitelist_length == 0:
+            self.blankProgramLabel.pack()
         # self._programButtons = new_list
 
     def refresh(self, pid: int) -> None:
@@ -136,6 +164,15 @@ class _WhitelistUI(tk.Toplevel):
 
         # self.insertButtons()
         selfButton.pack()
+        whitelist_length = len(self.getProgramWhitelist())
+        # print(f"{whitelist_length = }")
+        self.blankWhitelistLabel.pack_forget()
+        self.blankProgramLabel.pack_forget()
+        if whitelist_length == 0: # No whitelist
+            self.blankWhitelistLabel.pack()
+        
+        if len(self.processes) - whitelist_length == 0: # No blacklist
+            self.blankProgramLabel.pack()
         self._printProgramWhitelist()
     
     def getProgramWhitelist(self):
