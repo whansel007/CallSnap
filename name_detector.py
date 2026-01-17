@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
+from whitelist import minmaxPrograms
 import threading
 import json
 import time
@@ -27,8 +28,9 @@ class NameDetectorGUI:
     def __init__(self, root, configure_window=True, show_settings=True):
         self.root = root
         self.toplevel = root.winfo_toplevel()
+
         if configure_window:
-            self.toplevel.title("CallSnap - Name Detector")
+            self.toplevel.title("zoomSnap - Name Detector")
             self.toplevel.geometry("1000x600")
             self.toplevel.configure(bg=BG)
         else:
@@ -41,6 +43,8 @@ class NameDetectorGUI:
             style.theme_use("clam")
         except tk.TclError:
             pass
+
+        # Style ===
         style.configure("TFrame", background=BG)
         style.configure("TLabel", background=BG, foreground=TEXT_PRIMARY, font=("Georgia", 11))
         style.configure("TEntry", fieldbackground="white", foreground=TEXT_PRIMARY)
@@ -77,6 +81,8 @@ class NameDetectorGUI:
         )
         style.map("Utility.TButton", background=[("active", UTILITY_HOVER)])
         
+        # Variables ===
+        self.minmaxPrograms = minmaxPrograms
         self.listening = False
         self.recognizer = None
         self.listener_thread = None
@@ -174,7 +180,7 @@ class NameDetectorGUI:
         browse_model_btn.grid(row=1, column=2, sticky="w")
 
         # Device Selection
-        device_label = ttk.Label(settings_frame, text="Audio Device (Zoom output):")
+        device_label = ttk.Label(settings_frame, text="Speaker Device (Zoom Output):")
         device_label.grid(row=2, column=0, sticky="w", pady=5)
         self.device_combo = ttk.Combobox(
             settings_frame,
@@ -239,7 +245,7 @@ class NameDetectorGUI:
             return
 
         self.settings_window = tk.Toplevel(self.toplevel)
-        self.settings_window.title("CallSnap - Detector Settings")
+        self.settings_window.title("zoomSnap - Detector Settings")
         self.settings_window.configure(bg=BG)
         self.settings_window.geometry("640x360")
         self.build_settings_frame(self.settings_window, include_save_button=True)
@@ -411,7 +417,9 @@ class NameDetectorGUI:
                         if now - last_hit >= cooldown:
                             last_hit = now
                             self.log(f"DETECTED: '{target_name}'")
+                            self.minmaxPrograms()
                             self.show_detection_popup(target_name)
+                            
 
         # When there is an error launching
         except Exception as e:
