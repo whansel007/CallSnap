@@ -2,6 +2,8 @@
 import ctypes
 import tkinter as tk
 
+from name_detector import NameDetectorGUI
+
 # Get a refference to user32.dll file
 user32 = ctypes.windll.user32
     # dll is Dynamic Link Library containing window functions that other processes can call 
@@ -17,6 +19,9 @@ def minimize_all():
     if shell:
         user32.SendMessageW(shell, WM_COMMAND, MINIMIZE_ALL, 0)
 
+def open_name_detector():
+    detector_window = tk.Toplevel(root)
+    NameDetectorGUI(detector_window)
 
 # UI ===
 root = tk.Tk()
@@ -24,5 +29,8 @@ root.title("Minimize All")
 
 btn = tk.Button(root, text="Minimize All Apps", command=minimize_all)
 btn.pack(padx=20, pady=20)
+
+open_detector_btn = tk.Button(root, text="Open Name Detector", command=open_name_detector)
+open_detector_btn.pack(padx=20, pady=10)
 
 root.mainloop()
