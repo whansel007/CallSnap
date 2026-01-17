@@ -4,6 +4,7 @@ import threading
 import json
 import time
 import warnings
+import os
 import numpy as np
 import soundcard as sc
 from vosk import KaldiRecognizer, Model
@@ -23,12 +24,19 @@ UTILITY_HOVER = "#d7d1ca"
 
 
 class NameDetectorGUI:
-    def __init__(self, root):
+    def __init__(self, root, configure_window=True, show_settings=True):
         self.root = root
-        self.root.title("CallSnap - Name Detector")
-        self.root.geometry("1000x600")
-        self.root.configure(bg=BG)
-        style = ttk.Style(self.root)
+        self.toplevel = root.winfo_toplevel()
+        if configure_window:
+            self.toplevel.title("CallSnap - Name Detector")
+            self.toplevel.geometry("1000x600")
+            self.toplevel.configure(bg=BG)
+        else:
+            try:
+                self.root.configure(bg=BG)
+            except tk.TclError:
+                pass
+        style = ttk.Style(self.toplevel)
         try:
             style.theme_use("clam")
         except tk.TclError:
@@ -68,84 +76,22 @@ class NameDetectorGUI:
             padding=1,
         )
         style.map("Utility.TButton", background=[("active", UTILITY_HOVER)])
+        
         self.listening = False
         self.recognizer = None
         self.listener_thread = None
+        self.settings_window = None
+        self.device_combo = None
 
-        # Settings frame
-        settings_frame = ttk.LabelFrame(root, text="Settings", padding=12, style="Section.TLabelframe")
-        settings_frame.pack(fill="x", padx=24, pady=(20, 10))
-
-        # Target Name
-        target_name_label = ttk.Label(settings_frame, text="Target Name:")
-        target_name_label.grid(row=0, column=0, sticky="w", pady=5)
-        self.target_name = tk.StringVar(value="alex")
-        target_name_entry = ttk.Entry(settings_frame, textvariable=self.target_name, width=40)
-        target_name_entry.grid(row=0, column=1, sticky="ew", padx=8)
-
-        # Model Path
-        model_path_label = ttk.Label(settings_frame, text="Model Path:")
-        model_path_label.grid(row=1, column=0, sticky="w", pady=5)
+        self.target_name = tk.StringVar(value="william,harvin")
         self.model_path = tk.StringVar(value="./models/vosk-model-small-en-us-0.15")
-        model_path_entry = ttk.Entry(settings_frame, textvariable=self.model_path, width=40)
-        model_path_entry.grid(row=1, column=1, sticky="ew", padx=8)
-        browse_model_btn = ttk.Button(
-            settings_frame,
-            text="Browse...",
-            command=self.browse_model,
-            style="Utility.TButton",
-        )
-        browse_model_btn.grid(row=1, column=2, sticky="w")
-
-        # Device Selection
-        device_label = ttk.Label(settings_frame, text="Audio Device (Zoom output):")
-        device_label.grid(row=2, column=0, sticky="w", pady=5)
         self.device_name = tk.StringVar(value="")
-        self.device_combo = ttk.Combobox(
-            settings_frame,
-            textvariable=self.device_name,
-            width=40,
-            state="readonly",
-        )
-        self.device_combo.grid(row=2, column=1, sticky="ew", padx=8)
-        refresh_devices_btn = ttk.Button(
-            settings_frame,
-            text="Refresh",
-            command=self.refresh_devices,
-            style="Utility.TButton",
-        )
-        refresh_devices_btn.grid(row=2, column=2, sticky="w")
-        zoom_help_btn = ttk.Button(
-            settings_frame,
-            text="Zoom-only Help",
-            command=self.show_zoom_help,
-            style="Utility.TButton",
-        )
-        zoom_help_btn.grid(row=2, column=3, sticky="w", padx=(6, 0))
-
-        # Sample Rate
-        sample_rate_label = ttk.Label(settings_frame, text="Sample Rate:")
-        sample_rate_label.grid(row=3, column=0, sticky="w", pady=5)
         self.sample_rate = tk.IntVar(value=16000)
-        sample_rate_entry = ttk.Entry(settings_frame, textvariable=self.sample_rate, width=40)
-        sample_rate_entry.grid(row=3, column=1, sticky="ew", padx=8)
-
-        # Block Size
-        block_size_label = ttk.Label(settings_frame, text="Block Size:")
-        block_size_label.grid(row=4, column=0, sticky="w", pady=5)
         self.block_size = tk.IntVar(value=4096)
-        block_size_entry = ttk.Entry(settings_frame, textvariable=self.block_size, width=40)
-        block_size_entry.grid(row=4, column=1, sticky="ew", padx=8)
+        self.cooldown = tk.DoubleVar(value=10.0)
 
-        # Cooldown
-        cooldown_label = ttk.Label(settings_frame, text="Cooldown (seconds):")
-        cooldown_label.grid(row=5, column=0, sticky="w", pady=5)
-        self.cooldown = tk.DoubleVar(value=5.0)
-        cooldown_entry = ttk.Entry(settings_frame, textvariable=self.cooldown, width=40)
-        cooldown_entry.grid(row=5, column=1, sticky="ew", padx=8)
-
-        settings_frame.columnconfigure(1, weight=1)
-        self.refresh_devices()
+        if show_settings:
+            self.build_settings_frame(root)
 
         # Button frame
         button_frame = ttk.Frame(root)
@@ -204,6 +150,107 @@ class NameDetectorGUI:
         )
         self.output_text.pack(fill="both", expand=True)
 
+    def build_settings_frame(self, parent, include_save_button=False):
+        settings_frame = ttk.LabelFrame(parent, text="Settings", padding=12, style="Section.TLabelframe")
+        settings_frame.pack(fill="x", padx=24, pady=(20, 10))
+
+        # Target Name
+        target_name_label = ttk.Label(settings_frame, text="Target Name:")
+        target_name_label.grid(row=0, column=0, sticky="w", pady=5)
+        target_name_entry = ttk.Entry(settings_frame, textvariable=self.target_name, width=40)
+        target_name_entry.grid(row=0, column=1, sticky="ew", padx=8)
+
+        # Model Path
+        model_path_label = ttk.Label(settings_frame, text="Model Path:")
+        model_path_label.grid(row=1, column=0, sticky="w", pady=5)
+        model_path_entry = ttk.Entry(settings_frame, textvariable=self.model_path, width=40)
+        model_path_entry.grid(row=1, column=1, sticky="ew", padx=8)
+        browse_model_btn = ttk.Button(
+            settings_frame,
+            text="Browse...",
+            command=self.browse_model,
+            style="Utility.TButton",
+        )
+        browse_model_btn.grid(row=1, column=2, sticky="w")
+
+        # Device Selection
+        device_label = ttk.Label(settings_frame, text="Audio Device (Zoom output):")
+        device_label.grid(row=2, column=0, sticky="w", pady=5)
+        self.device_combo = ttk.Combobox(
+            settings_frame,
+            textvariable=self.device_name,
+            width=40,
+            state="readonly",
+        )
+        self.device_combo.grid(row=2, column=1, sticky="ew", padx=8)
+        refresh_devices_btn = ttk.Button(
+            settings_frame,
+            text="Refresh",
+            command=self.refresh_devices,
+            style="Utility.TButton",
+        )
+        refresh_devices_btn.grid(row=2, column=2, sticky="w")
+        zoom_help_btn = ttk.Button(
+            settings_frame,
+            text="Zoom-only Help",
+            command=self.show_zoom_help,
+            style="Utility.TButton",
+        )
+        zoom_help_btn.grid(row=2, column=3, sticky="w", padx=(6, 0))
+
+        # Sample Rate
+        sample_rate_label = ttk.Label(settings_frame, text="Sample Rate:")
+        sample_rate_label.grid(row=3, column=0, sticky="w", pady=5)
+        sample_rate_entry = ttk.Entry(settings_frame, textvariable=self.sample_rate, width=40)
+        sample_rate_entry.grid(row=3, column=1, sticky="ew", padx=8)
+
+        # Block Size
+        block_size_label = ttk.Label(settings_frame, text="Block Size:")
+        block_size_label.grid(row=4, column=0, sticky="w", pady=5)
+        block_size_entry = ttk.Entry(settings_frame, textvariable=self.block_size, width=40)
+        block_size_entry.grid(row=4, column=1, sticky="ew", padx=8)
+
+        # Cooldown
+        cooldown_label = ttk.Label(settings_frame, text="Cooldown (seconds):")
+        cooldown_label.grid(row=5, column=0, sticky="w", pady=5)
+        cooldown_entry = ttk.Entry(settings_frame, textvariable=self.cooldown, width=40)
+        cooldown_entry.grid(row=5, column=1, sticky="ew", padx=8)
+
+        settings_frame.columnconfigure(1, weight=1)
+        self.refresh_devices()
+
+        if include_save_button:
+            save_frame = ttk.Frame(parent)
+            save_frame.pack(fill="x", padx=24, pady=(0, 12))
+            save_button = ttk.Button(
+                save_frame,
+                text="Save",
+                command=self.save_settings_and_close,
+                style="Primary.TButton",
+            )
+            save_button.pack(side="right")
+
+        return settings_frame
+
+    def open_settings_window(self):
+        if self.settings_window and self.settings_window.winfo_exists():
+            self.settings_window.lift()
+            self.settings_window.focus_force()
+            return
+
+        self.settings_window = tk.Toplevel(self.toplevel)
+        self.settings_window.title("CallSnap - Detector Settings")
+        self.settings_window.configure(bg=BG)
+        self.settings_window.geometry("640x360")
+        self.build_settings_frame(self.settings_window, include_save_button=True)
+        self.settings_window.transient(self.toplevel)
+        self.settings_window.grab_set()
+
+    def save_settings_and_close(self):
+        if self.settings_window and self.settings_window.winfo_exists():
+            self.settings_window.destroy()
+            self.settings_window = None
+
     def log(self, message):
         """Log a message to the output text area"""
         self.output_text.config(state="normal") # Enable the textbox
@@ -228,8 +275,25 @@ class NameDetectorGUI:
 
     def browse_model(self):
         """Open folder picker for model selection"""
-        folder = filedialog.askdirectory(title="Select Vosk Model Folder")
-        if folder:
+        had_grab = False
+        if self.settings_window and self.settings_window.winfo_exists():
+            try:
+                if self.settings_window.grab_current() is not None:
+                    self.settings_window.grab_release()
+                    had_grab = True
+            except tk.TclError:
+                pass
+        filename = filedialog.askopenfilename(
+            title="Select any file inside the Vosk model folder",
+            parent=self.settings_window or self.toplevel,
+        )
+        if had_grab and self.settings_window and self.settings_window.winfo_exists():
+            try:
+                self.settings_window.grab_set()
+            except tk.TclError:
+                pass
+        if filename:
+            folder = os.path.dirname(filename)
             self.model_path.set(folder)
 
     def update_partial(self, text):
@@ -245,6 +309,8 @@ class NameDetectorGUI:
 
     def refresh_devices(self):
         """Refresh the list of audio devices"""
+        if not self.device_combo:
+            return
         speakers = sc.all_speakers()
         names = [s.name for s in speakers]
         default_name = sc.default_speaker().name if speakers else ""
