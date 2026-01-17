@@ -1,3 +1,6 @@
 numpy
 soundcard
 vosk
+win32gui
+win32con
+win32process
