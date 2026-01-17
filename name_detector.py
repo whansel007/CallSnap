@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 from whitelist import minmaxPrograms
 import threading
+import queue
 import json
 import time
 import warnings
@@ -86,6 +87,7 @@ class NameDetectorGUI:
         self.listening = False
         self.recognizer = None
         self.listener_thread = None
+        self.ui_queue = queue.Queue()
         self.settings_window = None
         self.device_combo = None
 
@@ -155,6 +157,22 @@ class NameDetectorGUI:
             font=("Segoe UI", 10),
         )
         self.output_text.pack(fill="both", expand=True)
+
+        self.root.after(100, self.process_ui_queue)
+
+    def process_ui_queue(self):
+        """Apply UI updates from the worker thread."""
+        try:
+            while True:
+                func, args, kwargs = self.ui_queue.get_nowait()
+                func(*args, **kwargs)
+        except queue.Empty:
+            pass
+        self.root.after(100, self.process_ui_queue)
+
+    def ui_call(self, func, *args, **kwargs):
+        """Schedule a UI update safely from any thread."""
+        self.ui_queue.put((func, args, kwargs))
 
     def build_settings_frame(self, parent, include_save_button=False):
         settings_frame = ttk.LabelFrame(parent, text="Settings", padding=12, style="Section.TLabelframe")
@@ -380,14 +398,17 @@ class NameDetectorGUI:
             block_size = self.block_size.get()
             cooldown = self.cooldown.get()
 
-            self.update_partial(f"Loading model from: {model_path}")
+            self.ui_call(self.update_partial, f"Loading model from: {model_path}")
             model = Model(model_path)
             self.recognizer = KaldiRecognizer(model, sample_rate)
 
-            self.update_partial("Finding microphone...")
+            self.ui_call(self.update_partial, "Finding microphone...")
             mic = self.find_loopback_microphone(device_name)
 
-            self.update_partial(f"Device: {mic.name} \nTarget: {target_name} \nListening")
+            self.ui_call(
+                self.update_partial,
+                f"Device: {mic.name} \nTarget: {target_name} \nListening",
+            )
             last_hit = 0.0
 
             with mic.recorder(
@@ -405,33 +426,33 @@ class NameDetectorGUI:
                         result = json.loads(self.recognizer.Result())
                         text = result.get("text", "")
                         if text:
-                            self.update_partial("")  # Clear partial
-                            self.log(f"{text}")
+                            self.ui_call(self.update_partial, "")  # Clear partial
+                            self.ui_call(self.log, f"{text}")
                     else:
                         partial = json.loads(self.recognizer.PartialResult())
                         text = partial.get("partial", "")
-                        self.update_partial(text)  # Update partial label
+                        self.ui_call(self.update_partial, text)  # Update partial label
 
                     if self.name_in_text(target_name, text):
                         now = time.time()
                         if now - last_hit >= cooldown:
                             last_hit = now
-                            self.log(f"DETECTED: '{target_name}'")
-                            self.minmaxPrograms()
-                            self.show_detection_popup(target_name)
+                            self.ui_call(self.log, f"DETECTED: '{target_name}'")
+                            self.ui_call(self.minmaxPrograms)
+                            self.ui_call(self.show_detection_popup, target_name)
                             
 
         # When there is an error launching
         except Exception as e:
-            self.log(f"ERROR: {str(e)}")
-            messagebox.showerror("Error", str(e))
+            self.ui_call(self.log, f"ERROR: {str(e)}")
+            self.ui_call(messagebox.showerror, "Error", str(e))
         
         # Runs no matter what happens
         finally: 
             self.listening = False
-            self.start_button.config(state="normal")
-            self.stop_button.config(state="disabled")
-            self.log("\nListening stopped.")
+            self.ui_call(self.start_button.config, state="normal")
+            self.ui_call(self.stop_button.config, state="disabled")
+            self.ui_call(self.log, "\nListening stopped.")
 
     def start_listening(self):
         """Start the listening thread"""
