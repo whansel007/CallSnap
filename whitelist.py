@@ -127,13 +127,14 @@ class _WhitelistUI(tk.Toplevel):
     def window_exit(self):
         _whitelist[:] = self.getProgramWhitelist()
         self.destroy()
-        
 
     def insertButtons(self) -> None:
         # new_dict: dict[int, ProgramButton] = {}
         for pid, name in self.processes.items():
             programButton: None|_ProgramButton = None
-            if _isWhitelisted(name, _whitelist) or programButton and programButton.isWhitelisted():
+            if len(name) == 0:
+                continue
+            elif _isWhitelisted(name, _whitelist) or programButton and programButton.isWhitelisted():
                 programButton = _ProgramButton(self.whitelistFrame, pid, name, lambda x = pid: self.refresh(x))
             else:
                 programButton = _ProgramButton(self.programsFrame, pid, name, lambda x = pid: self.refresh(x))
