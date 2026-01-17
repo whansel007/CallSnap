@@ -11,33 +11,95 @@ from vosk import KaldiRecognizer, Model
 # Suppress soundcard discontinuity warning
 warnings.filterwarnings("ignore", message="data discontinuity in recording")
 
+BG = "#f3f1ed"
+TEXT_PRIMARY = "#2d2a26"
+TEXT_SECONDARY = "#5f5a54"
+PRIMARY_BG = "#f7d070"
+PRIMARY_HOVER = "#e7c15f"
+SECONDARY_BG = "#9cc5a1"
+SECONDARY_HOVER = "#86b28c"
+UTILITY_BG = "#e6e2dc"
+UTILITY_HOVER = "#d7d1ca"
+
 
 class NameDetectorGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("CallSnap - Name Detector")
         self.root.geometry("1000x600")
+        self.root.configure(bg=BG)
+        style = ttk.Style(self.root)
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
+        style.configure("TFrame", background=BG)
+        style.configure("TLabel", background=BG, foreground=TEXT_PRIMARY, font=("Georgia", 11))
+        style.configure("TEntry", fieldbackground="white", foreground=TEXT_PRIMARY)
+        style.configure("TCombobox", fieldbackground="white", foreground=TEXT_PRIMARY)
+        style.configure("Section.TLabelframe", background=BG)
+        style.configure(
+            "Section.TLabelframe.Label",
+            background=BG,
+            foreground=TEXT_PRIMARY,
+            font=("Georgia", 12, "bold"),
+        )
+        style.configure(
+            "Primary.TButton",
+            background=PRIMARY_BG,
+            foreground=TEXT_PRIMARY,
+            font=("Segoe UI", 10, "bold"),
+            padding=2,
+        )
+        style.map("Primary.TButton", background=[("active", PRIMARY_HOVER)])
+        style.configure(
+            "Secondary.TButton",
+            background=SECONDARY_BG,
+            foreground="#1f2a22",
+            font=("Segoe UI", 10, "bold"),
+            padding=2,
+        )
+        style.map("Secondary.TButton", background=[("active", SECONDARY_HOVER)])
+        style.configure(
+            "Utility.TButton",
+            background=UTILITY_BG,
+            foreground=TEXT_PRIMARY,
+            font=("Segoe UI", 10),
+            padding=1,
+        )
+        style.map("Utility.TButton", background=[("active", UTILITY_HOVER)])
         self.listening = False
         self.recognizer = None
         self.listener_thread = None
 
         # Settings frame
-        settings_frame = ttk.LabelFrame(root, text="Settings", padding=10)
-        settings_frame.pack(fill="x", padx=10, pady=10)
+        settings_frame = ttk.LabelFrame(root, text="Settings", padding=12, style="Section.TLabelframe")
+        settings_frame.pack(fill="x", padx=24, pady=(20, 10))
 
         # Target Name
-        ttk.Label(settings_frame, text="Target Name:").grid(row=0, column=0, sticky="w", pady=5)
+        target_name_label = ttk.Label(settings_frame, text="Target Name:")
+        target_name_label.grid(row=0, column=0, sticky="w", pady=5)
         self.target_name = tk.StringVar(value="alex")
-        ttk.Entry(settings_frame, textvariable=self.target_name, width=40).grid(row=0, column=1, sticky="ew", padx=5)
+        target_name_entry = ttk.Entry(settings_frame, textvariable=self.target_name, width=40)
+        target_name_entry.grid(row=0, column=1, sticky="ew", padx=8)
 
         # Model Path
-        ttk.Label(settings_frame, text="Model Path:").grid(row=1, column=0, sticky="w", pady=5)
+        model_path_label = ttk.Label(settings_frame, text="Model Path:")
+        model_path_label.grid(row=1, column=0, sticky="w", pady=5)
         self.model_path = tk.StringVar(value="./models/vosk-model-small-en-us-0.15")
-        ttk.Entry(settings_frame, textvariable=self.model_path, width=40).grid(row=1, column=1, sticky="ew", padx=5)
-        ttk.Button(settings_frame, text="Browse...", command=self.browse_model).grid(row=1, column=2, sticky="w")
+        model_path_entry = ttk.Entry(settings_frame, textvariable=self.model_path, width=40)
+        model_path_entry.grid(row=1, column=1, sticky="ew", padx=8)
+        browse_model_btn = ttk.Button(
+            settings_frame,
+            text="Browse...",
+            command=self.browse_model,
+            style="Utility.TButton",
+        )
+        browse_model_btn.grid(row=1, column=2, sticky="w")
 
         # Device Selection
-        ttk.Label(settings_frame, text="Audio Device (Zoom output):").grid(row=2, column=0, sticky="w", pady=5)
+        device_label = ttk.Label(settings_frame, text="Audio Device (Zoom output):")
+        device_label.grid(row=2, column=0, sticky="w", pady=5)
         self.device_name = tk.StringVar(value="")
         self.device_combo = ttk.Combobox(
             settings_frame,
@@ -45,54 +107,101 @@ class NameDetectorGUI:
             width=40,
             state="readonly",
         )
-        self.device_combo.grid(row=2, column=1, sticky="ew", padx=5)
-        ttk.Button(settings_frame, text="Refresh", command=self.refresh_devices).grid(row=2, column=2, sticky="w")
-        ttk.Button(settings_frame, text="Zoom-only Help", command=self.show_zoom_help).grid(row=2, column=3, sticky="w", padx=(5, 0))
+        self.device_combo.grid(row=2, column=1, sticky="ew", padx=8)
+        refresh_devices_btn = ttk.Button(
+            settings_frame,
+            text="Refresh",
+            command=self.refresh_devices,
+            style="Utility.TButton",
+        )
+        refresh_devices_btn.grid(row=2, column=2, sticky="w")
+        zoom_help_btn = ttk.Button(
+            settings_frame,
+            text="Zoom-only Help",
+            command=self.show_zoom_help,
+            style="Utility.TButton",
+        )
+        zoom_help_btn.grid(row=2, column=3, sticky="w", padx=(6, 0))
 
         # Sample Rate
-        ttk.Label(settings_frame, text="Sample Rate:").grid(row=3, column=0, sticky="w", pady=5)
+        sample_rate_label = ttk.Label(settings_frame, text="Sample Rate:")
+        sample_rate_label.grid(row=3, column=0, sticky="w", pady=5)
         self.sample_rate = tk.IntVar(value=16000)
-        ttk.Entry(settings_frame, textvariable=self.sample_rate, width=40).grid(row=3, column=1, sticky="ew", padx=5)
+        sample_rate_entry = ttk.Entry(settings_frame, textvariable=self.sample_rate, width=40)
+        sample_rate_entry.grid(row=3, column=1, sticky="ew", padx=8)
 
         # Block Size
-        ttk.Label(settings_frame, text="Block Size:").grid(row=4, column=0, sticky="w", pady=5)
+        block_size_label = ttk.Label(settings_frame, text="Block Size:")
+        block_size_label.grid(row=4, column=0, sticky="w", pady=5)
         self.block_size = tk.IntVar(value=4096)
-        ttk.Entry(settings_frame, textvariable=self.block_size, width=40).grid(row=4, column=1, sticky="ew", padx=5)
+        block_size_entry = ttk.Entry(settings_frame, textvariable=self.block_size, width=40)
+        block_size_entry.grid(row=4, column=1, sticky="ew", padx=8)
 
         # Cooldown
-        ttk.Label(settings_frame, text="Cooldown (seconds):").grid(row=5, column=0, sticky="w", pady=5)
+        cooldown_label = ttk.Label(settings_frame, text="Cooldown (seconds):")
+        cooldown_label.grid(row=5, column=0, sticky="w", pady=5)
         self.cooldown = tk.DoubleVar(value=5.0)
-        ttk.Entry(settings_frame, textvariable=self.cooldown, width=40).grid(row=5, column=1, sticky="ew", padx=5)
+        cooldown_entry = ttk.Entry(settings_frame, textvariable=self.cooldown, width=40)
+        cooldown_entry.grid(row=5, column=1, sticky="ew", padx=8)
 
         settings_frame.columnconfigure(1, weight=1)
         self.refresh_devices()
 
         # Button frame
         button_frame = ttk.Frame(root)
-        button_frame.pack(fill="x", padx=10, pady=10)
+        button_frame.pack(fill="x", padx=24, pady=(4, 10))
 
-        self.start_button = ttk.Button(button_frame, text="Start Listening", command=self.start_listening)
-        self.start_button.pack(side="left", padx=5)
+        self.start_button = ttk.Button(
+            button_frame,
+            text="Start Listening",
+            command=self.start_listening,
+            style="Primary.TButton",
+        )
+        self.start_button.pack(side="left", padx=(0, 8))
 
-        self.stop_button = ttk.Button(button_frame, text="Stop Listening", command=self.stop_listening, state="disabled")
-        self.stop_button.pack(side="left", padx=5)
+        self.stop_button = ttk.Button(
+            button_frame,
+            text="Stop Listening",
+            command=self.stop_listening,
+            state="disabled",
+            style="Secondary.TButton",
+        )
+        self.stop_button.pack(side="left")
 
         # Main content frame (left + right)
         content_frame = ttk.Frame(root)
-        content_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        content_frame.pack(fill="both", expand=True, padx=24, pady=(0, 20))
 
         # LEFT SIDE - Current transcription
-        left_frame = ttk.LabelFrame(content_frame, text="Current", padding=10)
+        left_frame = ttk.LabelFrame(content_frame, text="Current", padding=12, style="Section.TLabelframe")
         left_frame.pack(side="left", fill="y", expand=False, padx=(0, 5))
 
-        self.partial_text = tk.Text(left_frame, width=30, state="disabled", wrap="word", relief="sunken", borderwidth=1)
+        self.partial_text = tk.Text(
+            left_frame,
+            width=30,
+            state="disabled",
+            wrap="word",
+            relief="sunken",
+            borderwidth=1,
+            bg="white",
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            font=("Segoe UI", 10),
+        )
         self.partial_text.pack(fill="both", expand=True)
 
         # RIGHT SIDE - Log
-        right_frame = ttk.LabelFrame(content_frame, text="Log", padding=10)
+        right_frame = ttk.LabelFrame(content_frame, text="Log", padding=12, style="Section.TLabelframe")
         right_frame.pack(side="right", fill="both", expand=True, padx=(5, 0))
 
-        self.output_text = scrolledtext.ScrolledText(right_frame, state="disabled")
+        self.output_text = scrolledtext.ScrolledText(
+            right_frame,
+            state="disabled",
+            bg="white",
+            fg=TEXT_PRIMARY,
+            insertbackground=TEXT_PRIMARY,
+            font=("Segoe UI", 10),
+        )
         self.output_text.pack(fill="both", expand=True)
 
     def log(self, message):

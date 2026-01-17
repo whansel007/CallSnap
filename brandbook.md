@@ -39,6 +39,9 @@ This document defines the visual style for the CallSnap UI.
 - Utility buttons: flat, full width, stone palette
 - Section label: "Utilities" in section style
 
+## UI implementation
+- Name every widget before packing or placing it; avoid chaining `.pack()` on creation.
+
 ## Iconography (optional)
 - If added, keep monochrome icons in `#2d2a26` and align left with text.
 
