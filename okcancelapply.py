@@ -2,7 +2,7 @@ import tkinter as tk
 from typing import Callable, Any
 
 class OkCancelApply(tk.Frame):
-    _PACK_KWARGS: dict[str, Any] = {"padx":2, "pady":10, "side":"left"}
+    _PACK_KWARGS: dict[str, Any] = {"padx":2, "pady":2, "side":"right"}
     _STYLE: dict[str, Any] = {
         "width": 12
     }
@@ -25,13 +25,13 @@ class OkCancelApply(tk.Frame):
         self.exitCommand = exitCommand if exitCommand else lambda: master.destroy()
         self.stateFunc = stateFunc if stateFunc else lambda: True
 
-        self.okButton = tk.Button(self, text = "Ok", command = self._handleOk, **self._STYLE)
-        self.cancelButton = tk.Button(self, text = "Cancel", command = self._handleCancel, **self._STYLE)
         self.applyButton = tk.Button(self, text = "Apply", command = self._handleApply, **self._STYLE)
+        self.cancelButton = tk.Button(self, text = "Cancel", command = self._handleCancel, **self._STYLE)
+        self.okButton = tk.Button(self, text = "Ok", command = self._handleOk, **self._STYLE)
 
-        self.okButton.pack(**self._PACK_KWARGS)
-        self.cancelButton.pack(**self._PACK_KWARGS)
         self.applyButton.pack(**self._PACK_KWARGS)
+        self.cancelButton.pack(**self._PACK_KWARGS)
+        self.okButton.pack(**self._PACK_KWARGS)
 
         self.applyButton.configure(state = tk.DISABLED)
     

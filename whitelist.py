@@ -120,7 +120,7 @@ class _WhitelistUI(tk.Toplevel):
 
         # Ok Cancel Apply Button
         self.oca: OCA = OCA(self, self._apply, None, self._stateFunc)
-        self.oca.pack(side="bottom")
+        self.oca.pack(side="bottom", **self._PACK_KWARGS)
 
         # Closing protocol
         self.protocol("WM_DELETE_WINDOW", self.window_exit)
@@ -130,9 +130,6 @@ class _WhitelistUI(tk.Toplevel):
 
     
     def _stateFunc(self):
-        print("Local :", self.localWhitelist)
-        print("Global:", _whitelist)
-        print()
         if len(_whitelist) != len(self.localWhitelist):
             return True
 
@@ -161,7 +158,7 @@ class _WhitelistUI(tk.Toplevel):
         
         # Show LabelFrame
         self.blankWhitelistLabel = tk.Label(self.whitelistFrame, text = "No whitelisted program yet.")
-        self.blankProgramLabel = tk.Label(self.programsFrame, text = "No active program yet.")
+        self.blankProgramLabel = tk.Label(self.programsFrame, text = "All programs are whitelisted!")
 
         whitelist_length = len(self.getProgramWhitelist())
         if whitelist_length == 0:
@@ -169,31 +166,49 @@ class _WhitelistUI(tk.Toplevel):
         
         if len(self.processes) - whitelist_length == 0:
             self.blankProgramLabel.pack()
-        # self._programButtons = new_list
+        
+        # Frame Padding
+        self.programPad = tk.Frame(self.programsFrame, height = self._PADDING)
+        self.whitelistPad = tk.Frame(self.whitelistFrame, height = self._PADDING)
+
+        self.programPad.pack()
+        self.whitelistPad.pack()
 
     def refresh(self, pid: int) -> None:
+        # Change the referred program button's whitelist status
         selfButton: _ProgramButton = self._programButtons[pid]
         selfButton.toggleWhitelist()
+
+        # Update the position of the button
         selfButton.pack_forget()
         if selfButton.isWhitelisted():
             selfButton.refresh(self.whitelistFrame)
         else:
             selfButton.refresh(self.programsFrame)
-        # self.insertButtons()
         selfButton.pack()
+
+        # Update local settings
         self.localWhitelist[:] = self.getProgramWhitelist()
+
+        # Show empty frame status
         whitelist_length = len(self.localWhitelist)
-        # print(f"{whitelist_length = }")
         self.blankWhitelistLabel.pack_forget()
         self.blankProgramLabel.pack_forget()
 
         if whitelist_length == 0: # No whitelist
             self.blankWhitelistLabel.pack()
-        
+
         if len(self.processes) - whitelist_length == 0: # No blacklist
             self.blankProgramLabel.pack()
+
+        # update frame padding
+        self.programPad.pack_forget()
+        self.programPad.pack()
+        self.whitelistPad.pack_forget()
+        self.whitelistPad.pack()
+        
+        # Refresh Apply Button
         self.oca.refreshApplyButton()
-        # self._printProgramWhitelist()
     
     def getProgramWhitelist(self):
         return [button.name for button in self._programButtons.values() if button.isWhitelisted()]
@@ -219,7 +234,6 @@ def getWhitelist() -> list[str]:
 
 def minmaxPrograms() -> None:
     processes = _getAllProcesses()
-    pprint(processes)
     for pid, name in processes.items():
         if _isWhitelisted(name, _whitelist):
             process_handling.restore_by_pid(pid)
@@ -235,4 +249,3 @@ if __name__ == "__main__":
     tk.Button(root, text = "Minimize!", command = minmaxPrograms).pack()
 
     root.mainloop()
-    # print(isWhitelisted("Discord.exe", _WHITELIST))
