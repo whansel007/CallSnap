@@ -1,7 +1,6 @@
 # Reference: https://www.geeksforgeeks.org/python/python-get-list-of-running-processes/
-import os
+import os, process_handling, win32gui, tkinter as tk
 from pprint import pprint
-import process_handling
 
 _WHITELIST: list[str] = ["discord"]
 
@@ -43,15 +42,57 @@ def isWhitelisted(name: str, whitelist: list[str]) -> bool:
             return True
     return False
 
+# Class
+class ProgramButton(tk.Button):
+
+    def __init__(self, master: tk.Misc | None = None, pid: int = 0, name: str = "") -> None:
+        hwnds = process_handling.getHwnds(pid)
+        for hwnd in hwnds:
+            name = name + " " + win32gui.GetWindowText(hwnd)
+        
+        super().__init__(master, text = name)
+
+class WhitelistUI(tk.Tk):
+    
+    def __init__(self, title: str = "Whitelist", width: int = 600, height: int = 600) -> None:
+        super().__init__()
+        self.title(title)
+        self.geometry(f"{width}x{height}")
+
+        processes = getAllProcesses()
+        # display = "\n".join([f"{pid}\t: {name}" for pid, name in processes.items()])
+        # tk.Label(self, text = display).pack()
+
+        # Programs List
+        programsFrame: tk.LabelFrame = tk.LabelFrame(self, text = "Programs")
+        programsFrame.pack()
+
+
+        # Whitelist
+        whitelistFrame: tk.LabelFrame = tk.LabelFrame(self, text = "Whitelisted Programs")
+        whitelistFrame.pack()
+
+        # Program Buttons
+        for pid, name in processes.items():
+            programButton: ProgramButton
+            if isWhitelisted(name, _WHITELIST):
+                programButton = ProgramButton(whitelistFrame, pid, name)
+            else:
+                programButton = ProgramButton(programsFrame, pid, name)
+                
+            programButton.pack()
+
+    
 
 # Minimize Process with PID
 if __name__ == "__main__":
-    processes = getAllProcesses()
-    pprint(processes)
-    for pid, name in processes.items():
-        if isWhitelisted(name, _WHITELIST):
-            process_handling.restore_by_pid(pid)
-        else:
-            process_handling.minimize_by_pid(pid)
+    WhitelistUI("Whitelist").mainloop()
+    # processes = getAllProcesses()
+    # pprint(processes)
+    # for pid, name in processes.items():
+    #     if isWhitelisted(name, _WHITELIST):
+    #         process_handling.restore_by_pid(pid)
+    #     else:
+    #         process_handling.minimize_by_pid(pid)
             # print(pid, "\t", name)
     # print(isWhitelisted("Discord.exe", _WHITELIST))
