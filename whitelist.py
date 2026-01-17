@@ -2,7 +2,7 @@
 import os, process_handling, win32gui, tkinter as tk
 from pprint import pprint
 
-_WHITELIST: list[str] = ["discord"]
+_WHITELIST: list[str] = ["discord", "spotify"]
 
 # Functions
 def splitCol(row: str) -> list[str]:
@@ -44,18 +44,25 @@ def isWhitelisted(name: str, whitelist: list[str]) -> bool:
 
 # Class
 class ProgramButton(tk.Button):
+    _isWhitelisted: bool = False
 
     def __init__(self, master: tk.Misc | None = None, pid: int = 0, name: str = "") -> None:
         hwnds = process_handling.getHwnds(pid)
+        self.name = name
         for hwnd in hwnds:
-            name = name + " " + win32gui.GetWindowText(hwnd)
+            self.name = self.name + " " + win32gui.GetWindowText(hwnd)
         
-        super().__init__(master, text = name)
-
-class WhitelistUI(tk.Tk):
+        super().__init__(master, text = self.name, command = self.toggleWhitelist)
     
-    def __init__(self, title: str = "Whitelist", width: int = 600, height: int = 600) -> None:
-        super().__init__()
+    def toggleWhitelist(self):
+        print(self.name)
+        self._isWhitelisted = not self._isWhitelisted
+
+class WhitelistUI(tk.Toplevel):
+    _PADDING: int = 10
+
+    def __init__(self, master = None, title: str = "Whitelist", width: int = 600, height: int = 600) -> None:
+        super().__init__(master)
         self.title(title)
         self.geometry(f"{width}x{height}")
 
@@ -64,29 +71,38 @@ class WhitelistUI(tk.Tk):
         # tk.Label(self, text = display).pack()
 
         # Programs List
-        programsFrame: tk.LabelFrame = tk.LabelFrame(self, text = "Programs")
-        programsFrame.pack()
+        self.programsFrame: tk.LabelFrame = tk.LabelFrame(self, text = "Programs")
+        self.programsFrame.pack(padx = self._PADDING, pady = self._PADDING, fill = "x")
 
 
         # Whitelist
-        whitelistFrame: tk.LabelFrame = tk.LabelFrame(self, text = "Whitelisted Programs")
-        whitelistFrame.pack()
+        self.whitelistFrame: tk.LabelFrame = tk.LabelFrame(self, text = "Whitelisted Programs")
+        self.whitelistFrame.pack(padx = self._PADDING, pady = self._PADDING, fill = "x")
 
         # Program Buttons
         for pid, name in processes.items():
             programButton: ProgramButton
             if isWhitelisted(name, _WHITELIST):
-                programButton = ProgramButton(whitelistFrame, pid, name)
+                programButton = ProgramButton(self.whitelistFrame, pid, name)
             else:
-                programButton = ProgramButton(programsFrame, pid, name)
+                programButton = ProgramButton(self.programsFrame, pid, name)
                 
             programButton.pack()
 
     
 
 # Minimize Process with PID
+def openWhitelistUI(master: tk.Tk):
+    wui = WhitelistUI(master)
+    wui.grab_set()
+    wui.mainloop()
+    wui.grab_release()
+
 if __name__ == "__main__":
-    WhitelistUI("Whitelist").mainloop()
+    root = tk.Tk()
+    root.geometry("300x300")
+    tk.Button(root, text = "Whitelist UI", command = lambda: openWhitelistUI(root)).pack()
+    root.mainloop()
     # processes = getAllProcesses()
     # pprint(processes)
     # for pid, name in processes.items():
