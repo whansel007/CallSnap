@@ -18,9 +18,19 @@ def minimize_by_pid(pid):
     for hwnd in getHwnds(pid):
         win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
 
-def restore_by_pid(pid):
+def maximize_by_pid(pid):
     for hwnd in getHwnds(pid):
         win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+
+def restore_by_pid(pid):
+    for hwnd in getHwnds(pid):
+        # Reference: https://stackoverflow.com/questions/60471477/using-python-how-can-i-detect-whether-a-program-is-minimized-or-maximized
+        _, viewStatus, *_ = win32gui.GetWindowPlacement(hwnd)
+        if viewStatus == win32con.SW_SHOWMAXIMIZED:
+            win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+        else:
+            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        
 
 if __name__ == "__main__":
     target_pids = [25064, 9032, 9260, 20100, 18736, 16132]  # Replace with your PID
