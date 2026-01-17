@@ -2,7 +2,7 @@ import win32gui
 import win32con
 import win32process
 
-def getHwnds(pid):
+def getHwnds(pid: int) -> list[int]:
     def callback(hwnd, hwnds):
         # Get PID for this window handle
         _, found_pid = win32process.GetWindowThreadProcessId(hwnd)
@@ -15,18 +15,14 @@ def getHwnds(pid):
     return hwnds
 
 def minimize_by_pid(pid):
-    hwnds = getHwnds(pid)
-
-    for hwnd in hwnds:
+    for hwnd in getHwnds(pid):
         win32gui.ShowWindow(hwnd, win32con.SW_MINIMIZE)
 
-def maximize_by_pid(pid):
-    hwnds = getHwnds(pid)
-
-    for hwnd in hwnds:
+def restore_by_pid(pid):
+    for hwnd in getHwnds(pid):
         win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
 
 if __name__ == "__main__":
     target_pids = [25064, 9032, 9260, 20100, 18736, 16132]  # Replace with your PID
     for target_pid in target_pids:
-        maximize_by_pid(target_pid)
+        restore_by_pid(target_pid)
