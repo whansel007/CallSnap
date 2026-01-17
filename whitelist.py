@@ -2,7 +2,7 @@
 import os, process_handling, win32gui, tkinter as tk
 from pprint import pprint
 
-_WHITELIST: list[str] = []
+_whitelist: list[str] = []
 
 # Functions
 def splitCol(row: str) -> list[str]:
@@ -46,18 +46,19 @@ def isWhitelisted(name: str, whitelist: list[str]) -> bool:
 class ProgramButton(tk.Button):
     def __init__(self, master: tk.Misc | None = None, pid: int = 0, name: str = "", command = lambda: print("Pressed")) -> None:
         hwnds = process_handling.getHwnds(pid)
+        self.name = name
         for hwnd in hwnds:
-            self.name = win32gui.GetWindowText(hwnd)
+            self.desc = win32gui.GetWindowText(hwnd)
         self.command = command
-        super().__init__(master, text = self.name, command = self.command)
-        self._isWhitelisted = isWhitelisted(name, _WHITELIST)
+        super().__init__(master, text = self.desc, command = self.command)
+        self._isWhitelisted = isWhitelisted(name, _whitelist)
     
     def toggleWhitelist(self):
         # print(self.name)
         self._isWhitelisted = not self._isWhitelisted
 
     def refresh(self, newMaster: tk.Misc):
-        super().__init__(newMaster, text = self.name, command = self.command)
+        super().__init__(newMaster, text = self.desc, command = self.command)
 
     
     def isWhitelisted(self) -> bool:
@@ -91,17 +92,31 @@ class WhitelistUI(tk.Toplevel):
         # Program Buttons
         self.insertButtons()
 
+        # Closing protocol
+        self.protocol("WM_DELETE_WINDOW", self.window_exit)
+
+    def window_exit(self):
+        _whitelist[:] = self.getProgramWhitelist()
+        self.destroy()
+        
+
     def insertButtons(self) -> None:
         # new_dict: dict[int, ProgramButton] = {}
         for pid, name in self.processes.items():
             programButton: None|ProgramButton = None
-            if isWhitelisted(name, _WHITELIST) or programButton and programButton.isWhitelisted():
+            if isWhitelisted(name, _whitelist) or programButton and programButton.isWhitelisted():
                 programButton = ProgramButton(self.whitelistFrame, pid, name, lambda x = pid: self.refresh(x))
             else:
                 programButton = ProgramButton(self.programsFrame, pid, name, lambda x = pid: self.refresh(x))
                 
             programButton.pack()
             self._programButtons[pid] = programButton
+        
+        # Show LabelFrame
+        self.blankProgramLabel = tk.Label(self.programsFrame, text = "No active program yet.")
+        self.blankProgramLabel.pack()
+        self.blankWhitelistLabel = tk.Label(self.whitelistFrame, text = "No ")
+        self.blankWhitelistLabel.pack()
         # self._programButtons = new_list
 
     def refresh(self, pid: int) -> None:
@@ -115,28 +130,32 @@ class WhitelistUI(tk.Toplevel):
 
         # self.insertButtons()
         selfButton.pack()
-        self._printButtonWhitelist()
+        self._printProgramWhitelist()
     
-    def _printButtonWhitelist(self):
+    def getProgramWhitelist(self):
+        return [button.name for button in self._programButtons.values() if button.isWhitelisted()]
+    
+    def _printProgramWhitelist(self):
         """
         Debug purposes only. Show the whitelist status of all program.
         """
         print("__Button_Whitelist_______")
         for button in self._programButtons.values():
-            print(button.name[:12], button.isWhitelisted())
+            print(button.desc[:12], button.isWhitelisted())
         print()
 
 # Minimize Process with PID
-def openWhitelistUI(master: tk.Tk):
+def openWhitelistUI(master: tk.Tk) -> None:
     wui = WhitelistUI(master)
     wui.grab_set()
     wui.mainloop()
-    wui.grab_release()
+    # wui.grab_release()
 
 if __name__ == "__main__":
     root = tk.Tk()
     root.geometry("300x300")
     tk.Button(root, text = "Whitelist UI", command = lambda: openWhitelistUI(root)).pack()
+    tk.Button(root, text = "Print Whitelist", command = lambda: print(_whitelist)).pack()
     root.mainloop()
     # processes = getAllProcesses()
     # pprint(processes)
