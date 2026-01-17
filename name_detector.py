@@ -401,45 +401,57 @@ class NameDetectorGUI:
             self.ui_call(self.update_partial, f"Loading model from: {model_path}")
             model = Model(model_path)
             self.recognizer = KaldiRecognizer(model, sample_rate)
-
-            self.ui_call(self.update_partial, "Finding microphone...")
-            mic = self.find_loopback_microphone(device_name)
-
-            self.ui_call(
-                self.update_partial,
-                f"Device: {mic.name} \nTarget: {target_name} \nListening",
-            )
             last_hit = 0.0
 
-            with mic.recorder(
-                samplerate=sample_rate,
-                channels=1,
-                blocksize=block_size,
-            ) as recorder:
-                while self.listening:
-                    data = recorder.record(block_size) # Data is audio described in float -1.0 to 1.0
-                    data16 = (data * 32767).astype(np.int16) # Amplify the audio because Vosk only accepts 16 bit integers (-32767 to 32767)
+            while self.listening:
+                try:
+                    self.ui_call(self.update_partial, "Finding microphone...")
+                    mic = self.find_loopback_microphone(device_name)
 
-                    # Feed the audio into the recognizer
-                    # Will return True if speech has ended (Final result) and False if not (Partial)
-                    if self.recognizer.AcceptWaveform(data16.tobytes()): 
-                        result = json.loads(self.recognizer.Result())
-                        text = result.get("text", "")
-                        if text:
-                            self.ui_call(self.update_partial, "")  # Clear partial
-                            self.ui_call(self.log, f"{text}")
-                    else:
-                        partial = json.loads(self.recognizer.PartialResult())
-                        text = partial.get("partial", "")
-                        self.ui_call(self.update_partial, text)  # Update partial label
+                    self.ui_call(
+                        self.update_partial,
+                        f"Device: {mic.name} \nTarget: {target_name} \nListening",
+                    )
 
-                    if self.name_in_text(target_name, text):
-                        now = time.time()
-                        if now - last_hit >= cooldown:
-                            last_hit = now
-                            self.ui_call(self.log, f"DETECTED: '{target_name}'")
-                            self.ui_call(self.minmaxPrograms)
-                            self.ui_call(self.show_detection_popup, target_name)
+                    with mic.recorder(
+                        samplerate=sample_rate,
+                        channels=1,
+                        blocksize=block_size,
+                    ) as recorder:
+                        while self.listening:
+                            data = recorder.record(block_size) # Data is audio described in float -1.0 to 1.0
+                            data16 = (data * 32767).astype(np.int16) # Amplify the audio because Vosk only accepts 16 bit integers (-32767 to 32767)
+
+                            # Feed the audio into the recognizer
+                            # Will return True if speech has ended (Final result) and False if not (Partial)
+                            if self.recognizer.AcceptWaveform(data16.tobytes()): 
+                                result = json.loads(self.recognizer.Result())
+                                text = result.get("text", "")
+                                if text:
+                                    self.ui_call(self.update_partial, "")  # Clear partial
+                                    self.ui_call(self.log, f"{text}")
+                            else:
+                                partial = json.loads(self.recognizer.PartialResult())
+                                text = partial.get("partial", "")
+                                self.ui_call(self.update_partial, text)  # Update partial label
+
+                            if self.name_in_text(target_name, text):
+                                now = time.time()
+                                if now - last_hit >= cooldown:
+                                    last_hit = now
+                                    self.ui_call(self.log, f"DETECTED: '{target_name}'")
+                                    self.ui_call(self.minmaxPrograms)
+                                    self.ui_call(self.show_detection_popup, target_name)
+                except Exception as e:
+                    message = str(e).lower()
+                    if "0x8889000a" in message or "audclnt_e_device_invalidated" in message:
+                        self.ui_call(
+                            self.update_partial,
+                            "Audio device changed or was reset.\nRecconecting...\nPlease choose another audio device!",
+                        )
+                        time.sleep(1.0)
+                        continue
+                    raise
                             
 
         # When there is an error launching
