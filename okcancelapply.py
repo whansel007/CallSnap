@@ -1,7 +1,7 @@
 import tkinter as tk
 from typing import Callable, Any
 
-class okcancelapply(tk.Frame):
+class OkCancelApply(tk.Frame):
     _PACK_KWARGS: dict[str, Any] = {"padx":2, "pady":10, "side":"left"}
     _STYLE: dict[str, Any] = {
         "width": 12
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     exitCommand = lambda: root.destroy()
     def changed(): return globalValue.get() != localValue.get()
 
-    oca = okcancelapply(root, applyCommand, exitCommand, changed)
+    oca = OkCancelApply(root, applyCommand, exitCommand, changed)
 
     def buttonClick():
         localValue.set(localValue.get() + 1)
