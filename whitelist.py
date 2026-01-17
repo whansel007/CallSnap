@@ -7,9 +7,7 @@ Public method:
 
 # Reference: https://www.geeksforgeeks.org/python/python-get-list-of-running-processes/
 import os, process_handling, win32gui, tkinter as tk
-from pprint import pprint
 from okcancelapply import OkCancelApply as OCA
-
 
 _whitelist: list[str] = []
 _blacklist: list[str] = ["TextInputHost.exe"]
