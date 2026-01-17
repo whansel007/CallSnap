@@ -2,14 +2,20 @@
 import os, process_handling, win32gui, tkinter as tk
 from pprint import pprint
 
+"""
+Public method: 
+- openWhitelistUI(master: tk.Tk) -> None
+- getWhitelist() -> list[str]
+"""
+
 _whitelist: list[str] = []
 
-# Functions
-def splitCol(row: str) -> list[str]:
+# Private Functions
+def _splitCol(row: str) -> list[str]:
     info: list[str] = row.split()
     return [" ".join(info[:-1]), info[-1]] if len(info) != 0 else []
 
-def getAllProcesses() -> dict[int, str]:
+def _getAllProcesses() -> dict[int, str]:
     """
     Get all running processes.
     
@@ -19,14 +25,14 @@ def getAllProcesses() -> dict[int, str]:
     output = os.popen("wmic process get description, processid").read()
     processes: dict[int, str] = {}
     for row in output.split("\n\n")[1:]:
-        info: list[str] = splitCol(row)
+        info: list[str] = _splitCol(row)
         if len(info) != 0:
             desc, pid = info
             if len(process_handling.getHwnds(int(pid))) == 0: continue
             processes[int(pid)] = desc
     return processes
 
-def isWhitelisted(name: str, whitelist: list[str]) -> bool:
+def _isWhitelisted(name: str, whitelist: list[str]) -> bool:
     """
     Check if name is in the whitelist (case-insensitive, match)
     
@@ -43,7 +49,7 @@ def isWhitelisted(name: str, whitelist: list[str]) -> bool:
     return False
 
 # Class
-class ProgramButton(tk.Button):
+class _ProgramButton(tk.Button):
     def __init__(self, master: tk.Misc | None = None, pid: int = 0, name: str = "", command = lambda: print("Pressed")) -> None:
         hwnds = process_handling.getHwnds(pid)
         self.name = name
@@ -51,7 +57,7 @@ class ProgramButton(tk.Button):
             self.desc = win32gui.GetWindowText(hwnd)
         self.command = command
         super().__init__(master, text = self.desc, command = self.command)
-        self._isWhitelisted = isWhitelisted(name, _whitelist)
+        self._isWhitelisted = _isWhitelisted(name, _whitelist)
     
     def toggleWhitelist(self):
         # print(self.name)
@@ -65,14 +71,14 @@ class ProgramButton(tk.Button):
         return self._isWhitelisted
 
 
-class WhitelistUI(tk.Toplevel):
+class _WhitelistUI(tk.Toplevel):
     _PADDING: int = 10
     _PACK_ARGS = {"padx": _PADDING, "pady": _PADDING, "fill": "x"}
 
     def __init__(self, master = None, title: str = "Whitelist", width: int = 600, height: int = 600) -> None:
         # Instance Variables
-        self._programButtons: dict[int, ProgramButton] = {}
-        self.processes = getAllProcesses()
+        self._programButtons: dict[int, _ProgramButton] = {}
+        self.processes = _getAllProcesses()
 
         super().__init__(master)
         self.title(title)
@@ -103,11 +109,11 @@ class WhitelistUI(tk.Toplevel):
     def insertButtons(self) -> None:
         # new_dict: dict[int, ProgramButton] = {}
         for pid, name in self.processes.items():
-            programButton: None|ProgramButton = None
-            if isWhitelisted(name, _whitelist) or programButton and programButton.isWhitelisted():
-                programButton = ProgramButton(self.whitelistFrame, pid, name, lambda x = pid: self.refresh(x))
+            programButton: None|_ProgramButton = None
+            if _isWhitelisted(name, _whitelist) or programButton and programButton.isWhitelisted():
+                programButton = _ProgramButton(self.whitelistFrame, pid, name, lambda x = pid: self.refresh(x))
             else:
-                programButton = ProgramButton(self.programsFrame, pid, name, lambda x = pid: self.refresh(x))
+                programButton = _ProgramButton(self.programsFrame, pid, name, lambda x = pid: self.refresh(x))
                 
             programButton.pack()
             self._programButtons[pid] = programButton
@@ -120,7 +126,7 @@ class WhitelistUI(tk.Toplevel):
         # self._programButtons = new_list
 
     def refresh(self, pid: int) -> None:
-        selfButton: ProgramButton = self._programButtons[pid]
+        selfButton: _ProgramButton = self._programButtons[pid]
         selfButton.toggleWhitelist()
         selfButton.pack_forget()
         if selfButton.isWhitelisted():
@@ -144,12 +150,15 @@ class WhitelistUI(tk.Toplevel):
             print(button.desc[:12], button.isWhitelisted())
         print()
 
-# Minimize Process with PID
+# Public Functions
 def openWhitelistUI(master: tk.Tk) -> None:
-    wui = WhitelistUI(master)
+    wui = _WhitelistUI(master)
     wui.grab_set()
     wui.mainloop()
     # wui.grab_release()
+
+def getWhitelist() -> list[str]:
+    return _whitelist
 
 if __name__ == "__main__":
     root = tk.Tk()
