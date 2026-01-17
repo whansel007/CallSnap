@@ -6,6 +6,7 @@ from pprint import pprint
 Public method: 
 - openWhitelistUI(master: tk.Tk) -> None
 - getWhitelist() -> list[str]
+- minmaxPrograms() -> None
 """
 
 _whitelist: list[str] = []
@@ -69,7 +70,6 @@ class _ProgramButton(tk.Button):
     
     def isWhitelisted(self) -> bool:
         return self._isWhitelisted
-
 
 class _WhitelistUI(tk.Toplevel):
     _PADDING: int = 10
@@ -160,18 +160,20 @@ def openWhitelistUI(master: tk.Tk) -> None:
 def getWhitelist() -> list[str]:
     return _whitelist
 
+def minmaxPrograms() -> None:
+    processes = _getAllProcesses()
+    pprint(processes)
+    for pid, name in processes.items():
+        if _isWhitelisted(name, _whitelist):
+            process_handling.restore_by_pid(pid)
+        else:
+            process_handling.minimize_by_pid(pid)
+
+
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry("300x300")
+    root.geometry("300x150")
     tk.Button(root, text = "Whitelist UI", command = lambda: openWhitelistUI(root)).pack()
     tk.Button(root, text = "Print Whitelist", command = lambda: print(_whitelist)).pack()
     root.mainloop()
-    # processes = getAllProcesses()
-    # pprint(processes)
-    # for pid, name in processes.items():
-    #     if isWhitelisted(name, _WHITELIST):
-    #         process_handling.restore_by_pid(pid)
-    #     else:
-    #         process_handling.minimize_by_pid(pid)
-            # print(pid, "\t", name)
     # print(isWhitelisted("Discord.exe", _WHITELIST))
