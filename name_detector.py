@@ -105,6 +105,18 @@ class NameDetectorGUI:
         self.output_text.config(state="disabled") # Redisable the textbox 
         self.root.update()
 
+    def get_last_log_snippet(self, max_chars=500):
+        """Return the last N characters from the log"""
+        try:
+            return self.output_text.get(f"end-1c - {max_chars} chars", "end-1c")
+        except tk.TclError:
+            return self.output_text.get("1.0", "end-1c")
+
+    def show_detection_popup(self, target_name):
+        """Show a popup with a log snippet when a name is detected"""
+        message = self.get_last_log_snippet(500).strip() or "(no log entries yet)"
+        messagebox.showinfo(f"Detected: {target_name}", message)
+
     def browse_model(self):
         """Open folder picker for model selection"""
         folder = filedialog.askdirectory(title="Select Vosk Model Folder")
@@ -165,18 +177,22 @@ class NameDetectorGUI:
 
     def name_in_text(self, target: str, text: str) -> bool:
         """Check if target name is in text"""
-        target = target.strip().lower()
         text = text.strip().lower()
 
         if not target or not text:
             return False
+        
+        for name in target:
+            if name in text:
+                return True
 
-        return target in text
+        return False
 
     def listen(self):
         """Listening thread"""
         try:
-            target_name = self.target_name.get()
+            target_name = self.target_name.get().strip().lower().replace(","," ").split()
+            print(target_name)
             model_path = self.model_path.get()
             device_name = self.device_name.get() or None
             sample_rate = self.sample_rate.get()
@@ -220,6 +236,7 @@ class NameDetectorGUI:
                         if now - last_hit >= cooldown:
                             last_hit = now
                             self.log(f"DETECTED: '{target_name}'")
+                            self.show_detection_popup(target_name)
 
         # When there is an error launching
         except Exception as e:
