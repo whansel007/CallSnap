@@ -175,5 +175,7 @@ if __name__ == "__main__":
     root.geometry("300x150")
     tk.Button(root, text = "Whitelist UI", command = lambda: openWhitelistUI(root)).pack()
     tk.Button(root, text = "Print Whitelist", command = lambda: print(_whitelist)).pack()
+    tk.Button(root, text = "Minimize!", command = minmaxPrograms).pack()
+
     root.mainloop()
     # print(isWhitelisted("Discord.exe", _WHITELIST))
