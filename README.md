@@ -22,7 +22,7 @@ CallSnap listens to your meeting audio, detects when your name is spoken, and mi
    - `python -m venv .venv`
    - `.\.venv\Scripts\activate`
 2) Install dependencies:
-   - `pip install numpy soundcard vosk`
+   - `pip install -r requirements.txt`
 3) Use the bundled Vosk model under `models/` (or point the UI to a different model path).
 
 ## Usage
