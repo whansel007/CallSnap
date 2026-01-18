@@ -374,7 +374,7 @@ class NameDetectorGUI:
         )
         messagebox.showinfo("Zoom-only Audio", message)
 
-    def name_in_text(self, target: str, text: str) -> bool:
+    def name_in_text(self, target: list[str], text: str) -> bool:
         """Check if target name is in text"""
         text = text.strip().lower()
 

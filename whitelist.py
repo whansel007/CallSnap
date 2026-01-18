@@ -1,14 +1,13 @@
-# Reference: https://www.geeksforgeeks.org/python/python-get-list-of-running-processes/
-import os, process_handling, win32gui, tkinter as tk
-from pprint import pprint
-from okcancelapply import OkCancelApply as OCA
-
 """
 Public method: 
 - openWhitelistUI(master: tk.Tk) -> None
 - getWhitelist() -> list[str]
 - minmaxPrograms() -> None
 """
+
+# Reference: https://www.geeksforgeeks.org/python/python-get-list-of-running-processes/
+import os, process_handling, win32gui, tkinter as tk
+from okcancelapply import OkCancelApply as OCA
 
 _whitelist: list[str] = []
 _blacklist: list[str] = ["TextInputHost.exe"]
@@ -128,7 +127,6 @@ class _WhitelistUI(tk.Toplevel):
     def _apply(self):
         _whitelist[:] = self.localWhitelist
 
-    
     def _stateFunc(self):
         if len(_whitelist) != len(self.localWhitelist):
             return True
