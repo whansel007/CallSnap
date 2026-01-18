@@ -158,7 +158,7 @@ class NameDetectorGUI:
         )
         self.output_text.pack(fill="both", expand=True)
 
-        self.root.after(100, self.process_ui_queue)
+        self.root.after(30, self.process_ui_queue)
 
     def process_ui_queue(self):
         """Apply UI updates from the worker thread."""
@@ -374,7 +374,7 @@ class NameDetectorGUI:
         )
         messagebox.showinfo("Zoom-only Audio", message)
 
-    def name_in_text(self, target: str, text: str) -> bool:
+    def name_in_text(self, target: list[str], text: str) -> bool:
         """Check if target name is in text"""
         text = text.strip().lower()
 
