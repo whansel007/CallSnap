@@ -1,6 +1,8 @@
 # Main program that cointains the settings
 import ctypes
 import tkinter as tk
+from tkinter import messagebox, ttk
+import keyboard
 import whitelist as wl
 from name_detector import NameDetectorGUI
 
@@ -56,10 +58,104 @@ actions_frame = tk.Frame(main_frame, bg="#f3f1ed")
 actions_frame.pack(fill="x", pady=(0, 16))
 
 detector_app = None
+keybind_window = None
+keybind_vars = {}
+keybind_actions = {}
+keybind_labels = {}
+keybind_hotkeys = {}
 
 def open_detector_settings():
     if detector_app:
         detector_app.open_settings_window()
+
+def apply_keybinds():
+    for action_name, action in keybind_actions.items():
+        entry = keybind_vars[action_name]
+        sequence = entry.get().strip()
+        previous = keybind_labels[action_name].get("current", "")
+        try:
+            if previous:
+                hotkey_id = keybind_hotkeys.pop(action_name, None)
+                if hotkey_id:
+                    keyboard.remove_hotkey(hotkey_id)
+            if sequence:
+                hotkey_id = keyboard.add_hotkey(
+                    sequence,
+                    lambda fn=action: root.after(0, fn),
+                )
+                keybind_hotkeys[action_name] = hotkey_id
+            keybind_labels[action_name]["current"] = sequence
+        except Exception as exc:
+            messagebox.showerror("Invalid key binding", str(exc))
+            return
+
+    messagebox.showinfo("Key bindings", "Key bindings updated.")
+
+def open_keybind_settings():
+    global keybind_window
+    if keybind_window and keybind_window.winfo_exists():
+        keybind_window.lift()
+        keybind_window.focus_force()
+        return
+
+    keybind_window = tk.Toplevel(root)
+    keybind_window.title("Key Bindings")
+    keybind_window.geometry("520x260")
+    keybind_window.configure(bg="#f3f1ed")
+
+    frame = tk.Frame(keybind_window, bg="#f3f1ed")
+    frame.pack(fill="both", expand=True, padx=20, pady=16)
+
+    header = tk.Label(
+        frame,
+        text="Configure Key Bindings",
+        font=("Georgia", 14, "bold"),
+        bg="#f3f1ed",
+        fg="#2d2a26",
+    )
+    header.pack(anchor="w")
+
+    hint = tk.Label(
+        frame,
+        text="Use sequences like ctrl+shift+m or alt+m.",
+        font=("Georgia", 9),
+        bg="#f3f1ed",
+        fg="#5f5a54",
+    )
+    hint.pack(anchor="w", pady=(4, 12))
+
+    form = tk.Frame(frame, bg="#f3f1ed")
+    form.pack(fill="x")
+
+    for row, action_name in enumerate(keybind_actions):
+        label = tk.Label(
+            form,
+            text=action_name,
+            font=("Segoe UI", 10),
+            bg="#f3f1ed",
+            fg="#2d2a26",
+        )
+        label.grid(row=row, column=0, sticky="w", pady=6)
+
+        entry = tk.Entry(form, textvariable=keybind_vars[action_name], width=36)
+        entry.grid(row=row, column=1, sticky="ew", padx=(12, 0), pady=6)
+
+    form.columnconfigure(1, weight=1)
+
+    button_row = tk.Frame(frame, bg="#f3f1ed")
+    button_row.pack(fill="x", pady=(16, 0))
+
+    apply_btn = tk.Button(
+        button_row,
+        text="Apply",
+        command=apply_keybinds,
+        font=("Segoe UI", 10, "bold"),
+        bg="#f7d070",
+        fg="#2d2a26",
+        activebackground="#e7c15f",
+        relief="flat",
+    )
+    apply_btn.pack(side="right")
 
 utility_label = tk.Label(
     actions_frame,
@@ -126,5 +222,20 @@ whitelist_btn.grid(row=1, column=1, sticky="ew", padx=(8, 0))
 detector_container = tk.Frame(main_frame, bg="#f3f1ed")
 detector_app = NameDetectorGUI(detector_container, configure_window=False, show_settings=False)
 detector_container.pack(fill="both", expand=True)
+
+keybind_actions = {
+    "Minimize All Apps": minimize_all,
+    "Minimize Excluding Whitelist": wl.minmaxPrograms,
+}
+keybind_vars = {name: tk.StringVar(value="") for name in keybind_actions}
+keybind_labels = {name: {"current": ""} for name in keybind_actions}
+
+keybind_button = ttk.Button(
+    detector_app.button_frame,
+    text="Configure Key Bindings",
+    command=open_keybind_settings,
+    style="Utility.TButton",
+)
+keybind_button.pack(side="left", padx=(8, 0))
 
 root.mainloop()

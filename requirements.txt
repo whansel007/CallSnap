@@ -1,4 +1,5 @@
 numpy<2.0
 SoundCard==0.4.5
 vosk==0.3.45
-pywin32==306
+pywin32
+keyboard==0.13.5

@@ -102,11 +102,11 @@ class NameDetectorGUI:
             self.build_settings_frame(root)
 
         # Button frame
-        button_frame = ttk.Frame(root)
-        button_frame.pack(fill="x", padx=24, pady=(4, 10))
+        self.button_frame = ttk.Frame(root)
+        self.button_frame.pack(fill="x", padx=24, pady=(4, 10))
 
         self.start_button = ttk.Button(
-            button_frame,
+            self.button_frame,
             text="Start Listening",
             command=self.start_listening,
             style="Primary.TButton",
@@ -114,7 +114,7 @@ class NameDetectorGUI:
         self.start_button.pack(side="left", padx=(0, 8))
 
         self.stop_button = ttk.Button(
-            button_frame,
+            self.button_frame,
             text="Stop Listening",
             command=self.stop_listening,
             state="disabled",
@@ -158,7 +158,7 @@ class NameDetectorGUI:
         )
         self.output_text.pack(fill="both", expand=True)
 
-        self.root.after(30, self.process_ui_queue)
+        self.root.after(20, self.process_ui_queue)
 
     def process_ui_queue(self):
         """Apply UI updates from the worker thread."""
@@ -168,7 +168,7 @@ class NameDetectorGUI:
                 func(*args, **kwargs)
         except queue.Empty:
             pass
-        self.root.after(100, self.process_ui_queue)
+        self.root.after(20, self.process_ui_queue)
 
     def ui_call(self, func, *args, **kwargs):
         """Schedule a UI update safely from any thread."""
@@ -292,9 +292,9 @@ class NameDetectorGUI:
         except tk.TclError:
             return self.output_text.get("1.0", "end-1c")
 
-    def show_detection_popup(self, target_name):
+    def show_detection_popup(self, target_name, extra=""):
         """Show a popup with a log snippet when a name is detected"""
-        message = self.get_last_log_snippet(500).strip() or "(no log entries yet)"
+        message = (self.get_last_log_snippet(500).strip() or "(no log entries yet)") + extra
         messagebox.showinfo(f"Detected: {target_name}", message)
 
     def browse_model(self):
@@ -397,6 +397,7 @@ class NameDetectorGUI:
             sample_rate = self.sample_rate.get()
             block_size = self.block_size.get()
             cooldown = self.cooldown.get()
+            last_partial = ""
 
             self.ui_call(self.update_partial, f"Loading model from: {model_path}")
             model = Model(model_path)
@@ -430,18 +431,25 @@ class NameDetectorGUI:
                                 if text:
                                     self.ui_call(self.update_partial, "")  # Clear partial
                                     self.ui_call(self.log, f"{text}")
+                                last_partial = ""
                             else:
                                 partial = json.loads(self.recognizer.PartialResult())
                                 text = partial.get("partial", "")
                                 self.ui_call(self.update_partial, text)  # Update partial label
+                                last_partial = text
 
                             if self.name_in_text(target_name, text):
                                 now = time.time()
                                 if now - last_hit >= cooldown:
                                     last_hit = now
+                                    if last_partial:
+                                        self.ui_call(self.log, last_partial)
+                                        self.ui_call(self.update_partial, "")
+                                        last_partial = ""
                                     self.ui_call(self.log, f"DETECTED: '{target_name}'")
                                     self.ui_call(self.minmaxPrograms)
                                     self.ui_call(self.show_detection_popup, target_name)
+                                    
                 except Exception as e:
                     message = str(e).lower()
                     if "0x8889000a" in message or "audclnt_e_device_invalidated" in message:
