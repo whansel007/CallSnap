@@ -11,13 +11,20 @@ CallSnap listens to your meeting audio, detects when your name is spoken, and mi
 - Offline model support (no cloud dependency)
 
 ## Requirements
-- Windows
+- Windows OS
 - Python 3.10+ recommended
 - Bundled Vosk model (default: `models/vosk-model-small-en-us-0.15/`)
 - Audio loopback support via `soundcard`
-- Virtual Audio Device (Voicemeeter Banana)
+- Python dependencies: `numpy<2.0`, `SoundCard==0.4.5`, `vosk==0.3.45`, `pywin32`, `keyboard==0.13.5`
+- Virtual Audio Device ([Voicemeeter Banana](https://vb-audio.com/Voicemeeter/banana.htm))
+  ⚠ IMPORTANT TO BE ABLE TO ISOLATE THE ZOOM AUDIO AND STILL HEAR ALL AUDIOS ⚠
+  Watch this [video](https://www.youtube.com/watch?v=XD9sWOjITYU) to understand Voicemeeter Banana
 
 ## Setup
+0) Install Voicemeeter Banana and Setup Default
+  - Open `Change System Sounds` and select `Playback` and click on `Voicemeeter Input` then `Set as Default Device`
+  - Open VoiceMeeter and select A1 Hardware to the hardware device you use to hear
+  - Open Zoom and select `Voicemeeter AUX Input` as Speaker
 1) Create and activate a virtual environment:
    - `python -m venv .venv`
    - `.\.venv\Scripts\activate`
